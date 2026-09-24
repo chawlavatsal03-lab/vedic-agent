@@ -1,0 +1,29 @@
+# Virtual environment
+venv/
+venv312/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Model files (too large)
+models/
+*.gguf
+
+# Generated readings
+reading_*.md
+
+# Backups and old files
+*.backup
+*_backup.py
+agent_broken.py
+calculator_backup.py
+agent_llm_backup.py
+test_swisseph.py
+test_geocode.py
+requirements_local_backup.txt
+
+# OS files
+Thumbs.db
+.DS_Store
