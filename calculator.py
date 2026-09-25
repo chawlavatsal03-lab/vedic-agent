@@ -22,7 +22,7 @@ from swisseph_ffi import (
     SEFLG_SIDEREAL, SEFLG_SPEED, SE_SIDM_LAHIRI,
     c_double, create_string_buffer,
 )
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, Photon
 from timezonefinder import TimezoneFinder
 import pytz
 import time
@@ -69,10 +69,19 @@ NOMINATIM_USER_AGENT = "vedic_agent_v1 (vatsal@yourdomain.com)"
 # Geocoding and timezone
 # -------------------------------------------------------------------
 def geocode_place(place_name, retries=3):
-    """Geocode a place name to (lat, lon), with retry and clear error."""
+    """Geocode a place name to (lat, lon), trying Photon first, then Nominatim."""
+    # --- Try Photon first (faster, no rate limit issues) ---
+    try:
+        photon = Photon(user_agent="vedic_agent_v1")
+        location = photon.geocode(place_name, timeout=15)
+        if location is not None:
+            return location.latitude, location.longitude
+    except Exception:
+        pass  # fall through to Nominatim
+
+    # --- Fallback to Nominatim (with retries) ---
     geolocator = Nominatim(user_agent=NOMINATIM_USER_AGENT)
     last_error = None
-
     for attempt in range(retries):
         try:
             location = geolocator.geocode(place_name, timeout=15)
