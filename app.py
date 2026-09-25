@@ -21,6 +21,8 @@ from dasha import (
     _format_datetime,
     _format_duration,
 )
+from divisional import compute_d1, compute_d9, compute_d10, compute_divisional_dignity
+from chart_image import render_north_indian
 
 # -------------------------------------------------------------------
 # Page config
@@ -135,9 +137,7 @@ if submitted:
         st.error(f"Error: {e}")
         st.stop()
 
-    # -------------------------------------------------------------------
     # Store in session so tabs persist
-    # -------------------------------------------------------------------
     st.session_state["chart"] = chart
     st.session_state["reading"] = reading
 
@@ -160,8 +160,8 @@ if "chart" in st.session_state and "reading" in st.session_state:
     c4.metric("Moon", f"{chart['planets']['Moon']['sign_vedic']} · House {chart['planets']['Moon']['house']}")
 
     # Tabs
-    tab_reading, tab_chart, tab_position, tab_dasha, tab_raw = st.tabs(
-        ["📖 Reading", "📊 Chart", "🔬 Position Data", "🕉 Dasha", "📄 Raw Markdown"]
+    tab_reading, tab_chart, tab_position, tab_dasha, tab_kundli, tab_raw = st.tabs(
+        ["📖 Reading", "📊 Chart", "🔬 Position Data", "🕉 Dasha", "🔯 Kundli", "📄 Raw Markdown"]
     )
 
     # --- Reading tab ---
@@ -224,6 +224,7 @@ if "chart" in st.session_state and "reading" in st.session_state:
             "Functional lordships are for the given Lagna. "
             "Dignity labels follow classical Parashari rules."
         )
+
     # --- Dasha tab ---
     with tab_dasha:
         try:
@@ -293,6 +294,79 @@ if "chart" in st.session_state and "reading" in st.session_state:
             )
         except Exception as e:
             st.error(f"Dasha calculation error: {e}")
+
+    # --- Kundli tab ---
+    with tab_kundli:
+        st.subheader("Divisional Charts (Kundli)")
+
+        division_choice = st.radio(
+            "Select divisional chart",
+            options=["D-1 Rashi", "D-9 Navamsa", "D-10 Dasamsa"],
+            horizontal=True,
+        )
+
+        if division_choice == "D-1 Rashi":
+            dchart = compute_d1(chart)
+            division_label = "D-1 Rashi"
+        elif division_choice == "D-9 Navamsa":
+            dchart = compute_d9(chart)
+            division_label = "D-9 Navamsa"
+        elif division_choice == "D-10 Dasamsa":
+            dchart = compute_d10(chart)
+            division_label = "D-10 Dasamsa"
+        else:
+            dchart = compute_d1(chart)
+            division_label = "D-1 Rashi"
+
+        # Compute dignity FOR THIS DIVISIONAL CHART
+        dignity_lookup = compute_divisional_dignity(dchart, chart)
+
+        svg = render_north_indian(
+            dchart,
+            title=f"{dchart['asc_sign_vedic']} Lagna ({division_label})",
+            dignity_lookup=dignity_lookup,
+        )
+
+        col_left, col_right = st.columns([2, 1])
+
+        with col_left:
+            # Make SVG responsive inside the column
+            svg_responsive = svg.replace(
+                'width="620" height="620"',
+                'width="100%" style="max-width:620px;height:auto;display:block;margin:auto;"',
+                1,
+            )
+            st.markdown(svg_responsive, unsafe_allow_html=True)
+
+        with col_right:
+            st.markdown(f"**Ascendant:** {dchart['asc_sign_vedic']} ({dchart['asc_sign']})")
+            st.markdown("**Planets:**")
+            rows = []
+            for p in PLANET_ORDER:
+                d = dchart["planets"].get(p)
+                if not d:
+                    continue
+                rows.append({
+                    "Planet": p,
+                    "Sign": d["sign_vedic"],
+                    "House": d["house"],
+                    "Dignity": dignity_lookup.get(p, "—"),
+                })
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+
+            st.download_button(
+                label="⬇️ Download SVG",
+                data=svg,
+                file_name=f"kundli_{division_label.replace(' ', '_').replace('-', '')}.svg",
+                mime="image/svg+xml",
+                use_container_width=True,
+            )
+
+        st.caption(
+            f"North Indian (diamond) chart for {division_label}. "
+            "Planet colors reflect dignity IN THIS CHART: "
+            "blue = exalted, red = debilitated, green = moolatrikona, purple = own sign."
+        )
 
     # --- Raw markdown tab ---
     with tab_raw:

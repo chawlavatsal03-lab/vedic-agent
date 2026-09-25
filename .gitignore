@@ -27,3 +27,6 @@ requirements_local_backup.txt
 # OS files
 Thumbs.db
 .DS_Store
+# Test artifacts
+chart_*.svg
+*_old.py
